@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_lms/main.dart';
 import 'student_sign_up_page.dart';
 import 'instructor_sign_up_page.dart';
@@ -16,9 +17,6 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  String _selectedRole = 'Student';
-
-  final List<String> _roles = ['Admin', 'Student', 'Instructor'];
 
   @override
   void dispose() {
@@ -30,42 +28,40 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Admin hardcoded login
-    if (_selectedRole == 'Admin') {
-      if (_emailController.text == 'admin@test.com' &&
-          _passwordController.text == 'admin123') {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomePage(role: 'Admin'),
-          ),
-        );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid admin credentials')),
-        );
-      }
-      return;
-    }
+    // 1. Check Admin credentials from .env
+    final adminEmail = dotenv.env['ADMIN_EMAIL'] ?? 'admin@test.com';
+    final adminPass = dotenv.env['ADMIN_PASSWORD'] ?? 'admin123';
 
-    // Student/Instructor login from SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final usersJson = prefs.getString('users') ?? '[]';
-    final users = List<Map<String, dynamic>>.from(jsonDecode(usersJson));
-
-    final matchingUser = users.where((u) =>
-        u['email'] == _emailController.text &&
-        u['password'] == _passwordController.text &&
-        u['role'] == _selectedRole);
-
-    if (matchingUser.isNotEmpty) {
+    if (_emailController.text == adminEmail &&
+        _passwordController.text == adminPass) {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => HomePage(role: _selectedRole),
+          builder: (context) => const HomePage(role: 'Admin'),
+        ),
+      );
+      return;
+    }
+
+    // 2. Check Student/Instructor login from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final usersJson = prefs.getString('users') ?? '[]';
+    final users = List<Map<String, dynamic>>.from(jsonDecode(usersJson));
+
+    final matchingUsers = users.where((u) =>
+        u['email'] == _emailController.text &&
+        u['password'] == _passwordController.text);
+
+    if (matchingUsers.isNotEmpty) {
+      // Automatically grab the role ('Student' or 'Instructor') saved during sign up
+      final String userRole = matchingUsers.first['role'];
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(role: userRole),
         ),
       );
     } else {
@@ -89,24 +85,6 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const Text('Login Page', style: TextStyle(fontSize: 24)),
               const SizedBox(height: 24),
-
-              // Role Dropdown
-              DropdownButtonFormField<String>(
-                initialValue: _selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Role',
-                  border: OutlineInputBorder(),
-                ),
-                items: _roles.map((role) {
-                  return DropdownMenuItem(value: role, child: Text(role));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedRole = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
 
               // Email
               TextFormField(

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'theme/app_theme.dart';
+import 'pages/splash_page.dart';
 import 'login_and_signup_pagers/login_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -12,8 +17,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter LMS',
-      theme: ThemeData(useMaterial3: true),
-      home: const LoginPage(),
+      theme: AppTheme.lightTheme,
+      home: const SplashPage(),
     );
   }
 }
