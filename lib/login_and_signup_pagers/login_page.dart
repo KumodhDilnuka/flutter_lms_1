@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_lms/main.dart';
 import 'student_sign_up_page.dart';
 import 'instructor_sign_up_page.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -49,19 +50,22 @@ class _LoginPageState extends State<LoginPage> {
     final usersJson = prefs.getString('users') ?? '[]';
     final users = List<Map<String, dynamic>>.from(jsonDecode(usersJson));
 
-    final matchingUsers = users.where((u) =>
-        u['email'] == _emailController.text &&
-        u['password'] == _passwordController.text);
+    final matchingUsers = users.where((u) {
+      final userMap = u['user'] ?? u;
+      return userMap['email'] == _emailController.text.trim() &&
+             userMap['password'] == _passwordController.text;
+    });
 
     if (matchingUsers.isNotEmpty) {
-      // Automatically grab the role ('Student' or 'Instructor') saved during sign up
-      final String userRole = matchingUsers.first['role'];
+      final userMap = matchingUsers.first['user'] ?? matchingUsers.first;
+      final String userRole = userMap['role'] ?? 'Student';
+      final String userEmail = userMap['email'] ?? _emailController.text.trim();
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => HomePage(role: userRole),
+          builder: (context) => HomePage(role: userRole, email: userEmail),
         ),
       );
     } else {
@@ -120,7 +124,21 @@ class _LoginPageState extends State<LoginPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Forgot Password?'),
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Login Button
               SizedBox(
