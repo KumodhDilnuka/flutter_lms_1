@@ -18,7 +18,8 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _checkStartup() async {
-    // Show splash animation for 2.2 seconds
+    // Show splash animation for 2.2 secondss
+
     await Future.delayed(const Duration(milliseconds: 2200));
 
     final prefs = await SharedPreferences.getInstance();
