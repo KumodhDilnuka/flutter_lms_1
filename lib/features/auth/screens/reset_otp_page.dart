@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/providers/auth_provider.dart';
-import 'package:flutter_lms/main.dart'; // For HomePage
+import 'package:flutter_lms/features/auth/screens/reset_password_page.dart';
+import 'package:flutter_lms/shared/widgets/app_button.dart';
 
-class VerifyOtpScreen extends StatefulWidget {
+class ResetOtpPage extends StatefulWidget {
   final String email;
 
-  const VerifyOtpScreen({super.key, required this.email});
+  const ResetOtpPage({super.key, required this.email});
 
   @override
-  State<VerifyOtpScreen> createState() => _VerifyOtpScreenState();
+  State<ResetOtpPage> createState() => _ResetOtpPageState();
 }
 
-class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
+class _ResetOtpPageState extends State<ResetOtpPage> {
   final _formKey = GlobalKey<FormState>();
   final _otpController = TextEditingController();
 
@@ -20,15 +21,17 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.verifyOtp(widget.email, _otpController.text);
+    final resetToken = await authProvider.verifyPasswordResetOTP(
+      widget.email,
+      _otpController.text,
+    );
 
-    if (success && mounted) {
-      Navigator.pushAndRemoveUntil(
+    if (resetToken != null && resetToken.isNotEmpty && mounted) {
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => HomePage(role: authProvider.currentRole!),
+          builder: (context) => ResetPasswordPage(resetToken: resetToken),
         ),
-        (route) => false,
       );
     }
   }
@@ -44,7 +47,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify Email')),
+      appBar: AppBar(title: const Text('Verify Reset OTP')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -54,7 +57,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Enter the OTP sent to\n${widget.email}',
+                'Enter the reset OTP sent to\n${widget.email}',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
@@ -65,6 +68,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                 decoration: const InputDecoration(
                   labelText: 'OTP',
                   prefixIcon: Icon(Icons.password),
+                  border: OutlineInputBorder(),
                 ),
                 validator: (value) =>
                     value == null || value.isEmpty ? 'Please enter OTP' : null,
@@ -77,28 +81,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   textAlign: TextAlign.center,
                 ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: authProvider.isLoading ? null : _verify,
-                child: authProvider.isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Verify Account'),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: authProvider.isLoading
-                    ? null
-                    : () async {
-                        final success = await authProvider.resendOtp(widget.email);
-                        if (success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('OTP resent successfully!')),
-                          );
-                        }
-                      },
-                child: const Text('Resend OTP'),
+              AppButton(
+                label: 'Verify OTP',
+                isLoading: authProvider.isLoading,
+                onPressed: _verify,
               ),
             ],
           ),

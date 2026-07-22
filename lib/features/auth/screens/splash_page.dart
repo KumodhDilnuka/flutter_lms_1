@@ -14,9 +14,15 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
+  double _opacity = 0.0;
+
   @override
   void initState() {
     super.initState();
+    // Trigger fade-in animation after first frame
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) setState(() => _opacity = 1.0);
+    });
     _checkStartup();
   }
 
@@ -56,46 +62,51 @@ class _SplashPageState extends State<SplashPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+        child: AnimatedOpacity(
+          opacity: _opacity,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeIn,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.school_rounded,
+                  size: 80,
+                  color: Colors.white,
+                ),
               ),
-              child: const Icon(
-                Icons.school_rounded,
-                size: 80,
-                color: Colors.white,
+              const SizedBox(height: 24),
+              const Text(
+                'Flutter LMS',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Flutter LMS',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
+              const SizedBox(height: 8),
+              Text(
+                'Learn • Practice • Master',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  letterSpacing: 0.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Learn • Practice • Master',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withValues(alpha: 0.8),
-                letterSpacing: 0.5,
+              const SizedBox(height: 48),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 3,
               ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              strokeWidth: 3,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

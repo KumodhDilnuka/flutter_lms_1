@@ -21,7 +21,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
 
   String? _selectedDateOfBirth;
   String _selectedEducation = 'Undergraduate';
-  final List<String> _learningGoals = ['Learn Flutter'];
+  final List<String> _learningGoals = [];
 
   final List<String> _educationOptions = [
     'High School',
@@ -81,6 +81,9 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
       lastName: _lastNameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
+      dateOfBirth: _selectedDateOfBirth!,
+      educationLevel: _selectedEducation,
+      learningGoals: _learningGoals,
     );
 
     if (success && mounted) {

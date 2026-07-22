@@ -80,11 +80,8 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
             const SizedBox(height: 16),
             const Text('Instructions:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            Text(
-              widget.lesson.contentUrl.isEmpty ? 'No specific instructions provided.' : widget.lesson.contentUrl,
-              style: TextStyle(fontSize: 15, color: Colors.grey.shade800),
-            ),
-            const SizedBox(height: 40),
+            Text(widget.lesson.description),
+            const SizedBox(height: 24),
 
             // Upload Area
             GestureDetector(

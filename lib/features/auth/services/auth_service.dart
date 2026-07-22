@@ -107,6 +107,82 @@ class AuthService {
     }
   }
 
+  Future<void> resendVerificationOTP(String email) async {
+    try {
+      await apiClient.dio.post(
+        '/api/v1/auth/resend-verification-otp',
+        data: {'email': email},
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<void> logoutCurrentSession() async {
+    try {
+      await apiClient.dio.post('/api/v1/auth/logout');
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<void> logoutFromAllDevices() async {
+    try {
+      await apiClient.dio.post('/api/v1/auth/logout-all');
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<void> forgotPassword(String email) async {
+    try {
+      await apiClient.dio.post(
+        '/api/v1/auth/forgot-password',
+        data: {'email': email},
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<String> verifyPasswordResetOTP({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final response = await apiClient.dio.post(
+        '/api/v1/auth/verify-password-reset-otp',
+        data: {
+          'email': email,
+          'otp': otp,
+        },
+      );
+      // Backend returns a short-lived reset token
+      return response.data['data']['resetToken'] ?? '';
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<void> resetPassword({
+    required String resetToken,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      await apiClient.dio.post(
+        '/api/v1/auth/reset-password',
+        data: {
+          'resetToken': resetToken,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        },
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   ApiException _handleDioError(DioException e) {
     if (e.response?.data != null && e.response?.data['message'] != null) {
       return ApiException(
@@ -115,6 +191,6 @@ class AuthService {
         errorCode: e.response?.data['errorCode'],
       );
     }
-    return ApiException(message: e.message ?? e.type.toString());
+    return ApiException(message: e.message ?? e.error?.toString() ?? e.type.toString());
   }
 }

@@ -43,15 +43,18 @@ class AuthProvider extends FeatureProvider {
     required String lastName,
     required String email,
     required String password,
+    required String dateOfBirth,
+    required String educationLevel,
+    required List<String> learningGoals,
   }) async {
     final user = await run(() => _authService.registerStudent(
       firstName: firstName,
       lastName: lastName,
       email: email,
       password: password,
-      dateOfBirth: '2000-01-01', // Default for now
-      educationLevel: 'Undergraduate',
-      learningGoals: ['Learn Flutter'],
+      dateOfBirth: dateOfBirth,
+      educationLevel: educationLevel,
+      learningGoals: learningGoals,
     ));
     return user != null;
   }
@@ -61,17 +64,22 @@ class AuthProvider extends FeatureProvider {
     required String lastName,
     required String email,
     required String password,
+    required String headline,
+    required String qualification,
+    required int experienceYears,
+    required List<String> expertise,
+    required String biography,
   }) async {
     final user = await run(() => _authService.registerInstructor(
       firstName: firstName,
       lastName: lastName,
       email: email,
       password: password,
-      headline: 'Flutter Instructor',
-      qualification: 'Software Engineer',
-      experienceYears: 1,
-      expertise: ['Flutter'],
-      biography: 'Instructor biography',
+      headline: headline,
+      qualification: qualification,
+      experienceYears: experienceYears,
+      expertise: expertise,
+      biography: biography,
     ));
     return user != null;
   }
@@ -93,9 +101,47 @@ class AuthProvider extends FeatureProvider {
   }
 
   Future<void> logout() async {
+    try {
+      await run(() => _authService.logoutCurrentSession());
+    } catch (_) {
+      // Ignore API errors on logout, still clear local session
+    }
     await _tokenStorage.clear();
     currentUser = null;
     currentRole = null;
     notifyListeners();
+  }
+
+  Future<bool> resendOtp(String email) async {
+    await run(() => _authService.resendVerificationOTP(email));
+    return errorMessage == null;
+  }
+
+  Future<void> logoutAllDevices() async {
+    try {
+      await run(() => _authService.logoutFromAllDevices());
+    } catch (_) {}
+    await _tokenStorage.clear();
+    currentUser = null;
+    currentRole = null;
+    notifyListeners();
+  }
+
+  Future<bool> forgotPassword(String email) async {
+    await run(() => _authService.forgotPassword(email));
+    return errorMessage == null;
+  }
+
+  Future<String?> verifyPasswordResetOTP(String email, String otp) async {
+    return await run(() => _authService.verifyPasswordResetOTP(email: email, otp: otp));
+  }
+
+  Future<bool> resetPassword(String resetToken, String newPassword, String confirmPassword) async {
+    await run(() => _authService.resetPassword(
+      resetToken: resetToken,
+      newPassword: newPassword,
+      confirmPassword: confirmPassword,
+    ));
+    return errorMessage == null;
   }
 }

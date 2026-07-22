@@ -24,7 +24,7 @@ class _InstructorSignupPageState extends State<InstructorSignupPage> {
   final _bioController = TextEditingController();
   final _expertiseController = TextEditingController();
 
-  final List<String> _expertiseList = ['Flutter', 'Dart', 'Firebase'];
+  final List<String> _expertiseList = [];
 
   @override
   void dispose() {
@@ -60,6 +60,11 @@ class _InstructorSignupPageState extends State<InstructorSignupPage> {
       lastName: _lastNameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
+      headline: _headlineController.text.trim(),
+      qualification: _qualificationController.text.trim(),
+      experienceYears: int.tryParse(_expController.text.trim()) ?? 0,
+      expertise: _expertiseList,
+      biography: _bioController.text.trim(),
     );
 
     if (success && mounted) {

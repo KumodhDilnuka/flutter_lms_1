@@ -8,39 +8,34 @@ class CourseService {
 
   CourseService(this.apiClient);
 
-  Future<List<CourseModel>> fetchCourses() async {
+  Future<List<CourseModel>> fetchCourses({String? categoryId, String? search}) async {
     try {
-      final response = await apiClient.dio.get('/api/v1/courses');
-      final data = response.data['data'] as List;
+      final queryParams = <String, dynamic>{
+        'page': 1,
+        'limit': 50,
+      };
+      if (categoryId != null && categoryId.isNotEmpty) queryParams['categoryId'] = categoryId;
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+
+      final response = await apiClient.dio.get('/api/v1/courses', queryParameters: queryParams);
+      final data = response.data['data']?['courses'] as List?;
+      if (data == null) return [];
       return data.map((json) => CourseModel.fromJson(json)).toList();
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }
 
-  Future<CourseModel> createCourse(CourseModel course) async {
+  Future<CourseModel> getCourseDetails(String courseId) async {
     try {
-      final response = await apiClient.dio.post(
-        '/api/v1/courses',
-        data: course.toJson(),
-      );
+      final response = await apiClient.dio.get('/api/v1/courses/$courseId');
       return CourseModel.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }
 
-  Future<CourseModel> updateCourse(CourseModel course) async {
-    try {
-      final response = await apiClient.dio.put(
-        '/api/v1/courses/${course.id}',
-        data: course.toJson(),
-      );
-      return CourseModel.fromJson(response.data['data']);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
+  // Student Enrollment Endpoints
 
   Future<void> enrollStudent(String courseId) async {
     try {
@@ -50,12 +45,14 @@ class CourseService {
     }
   }
 
-  Future<void> approveStudent(String courseId, String studentEmail) async {
+  Future<List<Map<String, dynamic>>> fetchMyEnrollments() async {
     try {
-      await apiClient.dio.post(
-        '/api/v1/courses/$courseId/approve',
-        data: {'studentEmail': studentEmail},
-      );
+      final response = await apiClient.dio.get('/api/v1/users/me/enrollments');
+      final data = response.data['data'] as List?;
+      if (data == null) return [];
+      
+      // Each enrollment returns { id, course: CourseModel, status: 'PENDING' | 'APPROVED' | 'REJECTED' }
+      return List<Map<String, dynamic>>.from(data);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }

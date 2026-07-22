@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
-import 'package:flutter_lms/features/student/assignments/screens/assignment_submission_page.dart';
+import 'package:flutter_lms/features/student/courses/screens/lesson_viewer_page.dart';
 
 class StudentCourseViewPage extends StatelessWidget {
   final CourseModel course;
@@ -9,35 +9,21 @@ class StudentCourseViewPage extends StatelessWidget {
   const StudentCourseViewPage({super.key, required this.course, required this.studentEmail});
 
   IconData _getIconForType(String type) {
-    switch (type) {
-      case 'Video': return Icons.play_circle_fill_rounded;
-      case 'PDF': return Icons.picture_as_pdf_rounded;
-      case 'Assignment': return Icons.assignment_rounded;
-      default: return Icons.article_rounded;
+    switch (type.toUpperCase()) {
+      case 'VIDEO': return Icons.play_circle_fill;
+      case 'DOCUMENT': return Icons.picture_as_pdf;
+      case 'ASSIGNMENT': return Icons.assignment;
+      default: return Icons.article;
     }
   }
 
   void _handleLessonTap(BuildContext context, LessonModel lesson) {
-    if (lesson.type == 'Assignment') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AssignmentSubmissionPage(lesson: lesson, studentEmail: studentEmail),
-        ),
-      );
-    } else {
-      // Just show a simple dialog for reading/watching
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(lesson.title),
-          content: Text('Simulating playing/viewing ${lesson.type}:\n\n${lesson.contentUrl}'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-          ],
-        ),
-      );
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LessonViewerPage(lesson: lesson),
+      ),
+    );
   }
 
   @override
@@ -74,12 +60,10 @@ class StudentCourseViewPage extends StatelessWidget {
                       else
                         ...section.lessons.map((lesson) {
                           return ListTile(
-                            leading: Icon(_getIconForType(lesson.type), color: Theme.of(context).colorScheme.primary),
+                            leading: Icon(_getIconForType(lesson.lessonType), color: Theme.of(context).colorScheme.primary),
                             title: Text(lesson.title),
-                            subtitle: Text(lesson.type),
-                            trailing: lesson.type == 'Assignment'
-                                ? const Text('Submit', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))
-                                : const Icon(Icons.arrow_forward_ios, size: 14),
+                            subtitle: Text(lesson.lessonType),
+                            trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                             onTap: () => _handleLessonTap(context, lesson),
                           );
                         }),

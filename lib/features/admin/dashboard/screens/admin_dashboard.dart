@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
-import 'package:flutter_lms/features/admin/courses/screens/course_creation_page.dart';
 import 'package:flutter_lms/features/auth/screens/login_page.dart';
+
+import 'package:flutter_lms/features/admin/categories/screens/category_management_page.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -55,6 +56,36 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ],
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(Icons.admin_panel_settings, color: Colors.white, size: 48),
+                  SizedBox(height: 16),
+                  Text('Admin Panel', style: TextStyle(color: Colors.white, fontSize: 20)),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.category_rounded),
+              title: const Text('Manage Categories'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CategoryManagementPage()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _courses.isEmpty
@@ -100,17 +131,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     );
                   },
                 ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CourseCreationPage()),
-          );
-          _loadCourses(); // Reload after creating
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Course'),
-      ),
     );
   }
 }
