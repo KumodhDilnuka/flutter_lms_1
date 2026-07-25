@@ -52,6 +52,9 @@ class _InstructorSignupPageState extends State<InstructorSignupPage> {
   }
 
   Future<void> _signup() async {
+    // Automatically add any un-added expertise text
+    _addExpertise();
+    
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthProvider>();

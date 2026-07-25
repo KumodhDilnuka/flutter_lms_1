@@ -89,6 +89,24 @@ class AuthService {
     }
   }
 
+  Future<AuthSession> adminLogin({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await apiClient.dio.post(
+        '/api/v1/auth/admin/login',
+        data: {
+          'email': email,
+          'password': password,
+        },
+      );
+      return AuthSession.fromJson(response.data['data']);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   Future<AuthSession> verifyEmail({
     required String email,
     required String otp,
@@ -184,11 +202,28 @@ class AuthService {
   }
 
   ApiException _handleDioError(DioException e) {
-    if (e.response?.data != null && e.response?.data['message'] != null) {
+    if (e.response?.data != null && e.response?.data is Map) {
+      final data = e.response!.data as Map<String, dynamic>;
+      String msg = data['message'] ?? 'An error occurred';
+
+      if (data['details'] != null && data['details'] is List) {
+        final details = data['details'] as List;
+        if (details.isNotEmpty) {
+          final firstError = details.first;
+          if (firstError is Map && firstError['message'] != null) {
+            msg = '${firstError['message']}';
+          }
+        }
+      }
+
+      if (msg == 'Request validation failed') {
+        msg = 'Validation Failed: $data';
+      }
+
       return ApiException(
         statusCode: e.response?.statusCode,
-        message: e.response?.data['message'],
-        errorCode: e.response?.data['errorCode'],
+        message: msg,
+        errorCode: data['errorCode'],
       );
     }
     return ApiException(message: e.message ?? e.error?.toString() ?? e.type.toString());

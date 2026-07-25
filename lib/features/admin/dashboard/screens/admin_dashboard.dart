@@ -1,10 +1,13 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
 import 'package:flutter_lms/features/auth/screens/login_page.dart';
-
 import 'package:flutter_lms/features/admin/categories/screens/category_management_page.dart';
+import 'package:flutter_lms/features/admin/users/screens/admin_users_page.dart';
+import 'package:flutter_lms/features/admin/providers/admin_provider.dart';
+import 'package:flutter_lms/shared/widgets/notification_bell.dart';
+import 'package:flutter_lms/shared/widgets/dashboard_stats_card.dart';
+import 'package:flutter_lms/shared/widgets/empty_state.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -14,25 +17,83 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  List<CourseModel> _courses = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCourses();
+    _loadData();
   }
 
-  Future<void> _loadCourses() async {
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final prefs = await SharedPreferences.getInstance();
-    final coursesJson = prefs.getString('courses') ?? '[]';
-    final List<dynamic> decodedList = jsonDecode(coursesJson);
+    final provider = context.read<AdminProvider>();
     
-    setState(() {
-      _courses = decodedList.map((e) => CourseModel.fromJson(e)).toList();
-      _isLoading = false;
-    });
+    // Store errors
+    List<String> errors = [];
+    
+    await provider.fetchAllCourses();
+    if (provider.errorMessage != null) {
+      errors.add('Courses: ${provider.errorMessage}');
+    }
+    
+    await provider.fetchUsers();
+    if (provider.errorMessage != null) {
+      errors.add('Users: ${provider.errorMessage}');
+    }
+
+    await provider.fetchCategories();
+    if (provider.errorMessage != null) {
+      errors.add('Categories: ${provider.errorMessage}');
+    }
+
+    if (mounted) {
+      if (errors.isNotEmpty) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('API Error'),
+            content: SingleChildScrollView(child: Text(errors.join('\n\n'))),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              )
+            ],
+          ),
+        );
+      }
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _archiveCourse(CourseModel course) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Archive Course'),
+        content: Text('Are you sure you want to archive "${course.title}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Archive', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final provider = context.read<AdminProvider>();
+      final success = await provider.archiveCourseAsAdmin(course.id);
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Course archived successfully')));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(provider.errorMessage ?? 'Archive failed')));
+        }
+      }
+    }
   }
 
   void _logout() {
@@ -45,10 +106,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AdminProvider>();
+    final courses = provider.adminCourses;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         actions: [
+          const NotificationBell(),
           IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout),
@@ -73,6 +138,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.people_alt_rounded),
+              title: const Text('Manage Users'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminUsersPage()),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.category_rounded),
               title: const Text('Manage Categories'),
               onTap: () {
@@ -88,49 +164,117 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _courses.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.library_books, size: 64, color: Colors.grey.shade400),
-                      const SizedBox(height: 16),
-                      Text('No courses created yet.', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _courses.length,
-                  itemBuilder: (context, index) {
-                    final course = _courses[index];
-                    return Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        title: Text(course.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 8),
-                            Text(course.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.person_pin_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
-                                const SizedBox(width: 4),
-                                Text('Instructor: ${course.allocatedInstructorEmail}', 
-                                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                          ],
+          : Column(
+              children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DashboardStatsCard(
+                            title: 'Total Users',
+                            value: '${provider.users.length}',
+                            icon: Icons.people,
+                            color: Colors.blue,
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                        Expanded(
+                          child: DashboardStatsCard(
+                            title: 'Total Courses',
+                            value: '${courses.length}',
+                            icon: Icons.library_books,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        Expanded(
+                          child: DashboardStatsCard(
+                            title: 'Categories',
+                            value: '${provider.categories.length}',
+                            icon: Icons.category,
+                            color: Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: courses.isEmpty
+                      ? const EmptyState(
+                          title: 'No Courses Found',
+                          description: 'There are currently no courses in the system.',
+                          icon: Icons.library_books_outlined,
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: courses.length,
+                          itemBuilder: (context, index) {
+                            final course = courses[index];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 20),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            course.title,
+                                            style: Theme.of(context).textTheme.titleLarge,
+                                          ),
+                                        ),
+                                        if (course.status == 'ARCHIVED')
+                                          Chip(
+                                            label: const Text('Archived'),
+                                            backgroundColor: Colors.grey.shade300,
+                                            visualDensity: VisualDensity.compact,
+                                          )
+                                        else
+                                          IconButton(
+                                            icon: const Icon(Icons.archive_outlined, color: Colors.red),
+                                            tooltip: 'Archive Course',
+                                            onPressed: () => _archiveCourse(course),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      course.shortDescription,
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.person, size: 16, color: Theme.of(context).colorScheme.primary),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            course.allocatedInstructorEmail.isEmpty 
+                                              ? 'Instructor: Unassigned'
+                                              : 'Instructor: ${course.allocatedInstructorEmail.split('@')[0]}',
+                                            style: TextStyle(
+                                              color: Theme.of(context).colorScheme.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
+              ],
+            ),
     );
   }
 }

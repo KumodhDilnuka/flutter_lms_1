@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/models/user_model.dart';
@@ -7,6 +9,11 @@ import 'package:flutter_lms/shared/widgets/app_card.dart';
 import 'package:flutter_lms/shared/widgets/app_button.dart';
 import 'package:flutter_lms/shared/widgets/section_header.dart';
 import 'package:flutter_lms/features/auth/screens/login_page.dart';
+import 'package:flutter_lms/shared/providers/user_provider.dart';
+import 'package:flutter_lms/features/student/providers/student_provider.dart';
+import 'package:flutter_lms/shared/models/student_profile_model.dart';
+import 'package:flutter_lms/features/profile/screens/edit_profile_page.dart';
+import 'package:flutter_lms/features/profile/screens/change_password_page.dart';
 
 class StudentProfilePage extends StatefulWidget {
   final String email;
@@ -19,8 +26,10 @@ class StudentProfilePage extends StatefulWidget {
 
 class _StudentProfilePageState extends State<StudentProfilePage> {
   User? _user;
+  StudentProfileModel? _studentProfile;
   bool _isLoading = true;
   int _enrolledCourseCount = 0;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -29,17 +38,77 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   }
 
   void _loadProfile() {
-    final auth = context.read<AuthProvider>();
+    final userProvider = context.read<UserProvider>();
+    final studentProvider = context.read<StudentProvider>();
     final courseProvider = context.read<CourseProvider>();
     final enrolledCount = courseProvider.myEnrollments
         .where((e) => e['status'] == 'APPROVED')
         .length;
 
-    setState(() {
-      _user = auth.currentUser;
-      _enrolledCourseCount = enrolledCount;
-      _isLoading = false;
+    Future.wait([
+      userProvider.fetchMyProfile(),
+      studentProvider.fetchMyProfile(),
+    ]).then((_) {
+      if (mounted) {
+        setState(() {
+          _user = userProvider.currentUserProfile ?? context.read<AuthProvider>().currentUser;
+          _studentProfile = studentProvider.studentProfile;
+          _enrolledCourseCount = enrolledCount;
+          _isLoading = false;
+        });
+      }
     });
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null && mounted) {
+      final success = await context.read<UserProvider>().uploadProfileImage(File(image.path));
+      if (success && mounted) {
+        _loadProfile();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to upload image')));
+      }
+    }
+  }
+
+  Future<void> _deleteImage() async {
+    final success = await context.read<UserProvider>().deleteProfileImage();
+    if (success && mounted) {
+      _loadProfile();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete image')));
+    }
+  }
+
+  void _showImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Upload new picture'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage();
+              },
+            ),
+            if (_user?.profileImageUrl != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove current picture', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteImage();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _logout() async {
@@ -63,62 +132,91 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   }
 
   void _showEditProfileDialog() {
-    final firstNameCtrl = TextEditingController(text: _user?.firstName ?? '');
-    final lastNameCtrl = TextEditingController(text: _user?.lastName ?? '');
-    final bioCtrl = TextEditingController(text: _user?.bio ?? '');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const EditProfilePage()),
+    ).then((_) {
+      if (mounted) _loadProfile(); // reload after returning
+    });
+  }
+
+  void _showEditAcademicDialog() {
+    final edCtrl = TextEditingController(text: _studentProfile?.educationLevel ?? '');
+    final majorCtrl = TextEditingController(text: _studentProfile?.major ?? '');
+    final yearCtrl = TextEditingController(text: _studentProfile?.graduationYear ?? '');
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SectionHeader(title: 'Edit Profile'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: firstNameCtrl,
-                decoration: const InputDecoration(labelText: 'First Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: lastNameCtrl,
-                decoration: const InputDecoration(labelText: 'Last Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: bioCtrl,
-                decoration: const InputDecoration(labelText: 'Bio'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 20),
-              AppButton(
-                label: 'Save Changes',
-                icon: Icons.save_rounded,
-                onPressed: () {
-                  // Profile update API not yet connected — show confirmation
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Edit Academic Info', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            TextField(controller: edCtrl, decoration: const InputDecoration(labelText: 'Education Level (e.g. Undergraduate)')),
+            const SizedBox(height: 12),
+            TextField(controller: majorCtrl, decoration: const InputDecoration(labelText: 'Major (e.g. Computer Science)')),
+            const SizedBox(height: 12),
+            TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: 'Graduation Year'), keyboardType: TextInputType.number),
+            const SizedBox(height: 20),
+            AppButton(
+              label: 'Save',
+              onPressed: () async {
+                final payload = {
+                  'educationLevel': edCtrl.text.trim(),
+                  'major': majorCtrl.text.trim(),
+                  'graduationYear': yearCtrl.text.trim(),
+                };
+                bool success;
+                if (_studentProfile == null || _studentProfile!.educationLevel == null) {
+                  success = await context.read<StudentProvider>().createProfile(payload);
+                } else {
+                  success = await context.read<StudentProvider>().updateProfile(payload);
+                }
+                
+                if (success && mounted) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Profile update will be available when API is connected.')),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
+                  _loadProfile();
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to save academic info')));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  void _deactivateAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Deactivate Account'),
+        content: const Text('Are you sure you want to deactivate your account? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Deactivate'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      final success = await context.read<UserProvider>().deactivateAccount();
+      if (success && mounted) {
+        _logoutAll();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to deactivate account')),
+        );
+      }
+    }
   }
 
   @override
@@ -161,10 +259,30 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
               elevation: 2,
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 44,
-                    backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    child: Icon(Icons.school_rounded, size: 48, color: Theme.of(context).colorScheme.primary),
+                  GestureDetector(
+                    onTap: _showImageOptions,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 44,
+                          backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                          backgroundImage: user.profileImageUrl != null ? NetworkImage(user.profileImageUrl!) : null,
+                          child: user.profileImageUrl == null ? Icon(Icons.person, size: 48, color: Theme.of(context).colorScheme.primary) : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text('${user.firstName} ${user.lastName}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
@@ -233,6 +351,39 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             ),
             const SizedBox(height: 20),
 
+            // Academic Information Section
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SectionHeader(title: 'Academic Information'),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: _showEditAcademicDialog,
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  if (_studentProfile == null || _studentProfile!.educationLevel == null)
+                    const Text('No academic information provided.', style: TextStyle(color: Colors.grey))
+                  else ...[
+                    _buildDetailRow(Icons.school, 'Education Level', _studentProfile!.educationLevel!),
+                    const SizedBox(height: 16),
+                    if (_studentProfile!.major != null) ...[
+                      _buildDetailRow(Icons.book, 'Major', _studentProfile!.major!),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_studentProfile!.graduationYear != null)
+                      _buildDetailRow(Icons.calendar_today, 'Graduation Year', _studentProfile!.graduationYear!),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
             // Student Information Section
             AppCard(
               child: Column(
@@ -247,6 +398,26 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                   _buildDetailRow(Icons.badge_outlined, 'Role', user.role),
                 ],
               ),
+            ),
+            const SizedBox(height: 28),
+
+            // Change Password & Deactivate
+            AppButton(
+              label: 'Change Password',
+              icon: Icons.lock_reset,
+              isOutlined: true,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppButton(
+              label: 'Deactivate Account',
+              icon: Icons.warning_rounded,
+              isOutlined: true,
+              color: Colors.orange.shade800,
+              onPressed: _deactivateAccount,
             ),
             const SizedBox(height: 28),
 

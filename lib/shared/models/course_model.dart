@@ -40,7 +40,7 @@ class CourseModel {
       shortDescription: json['shortDescription']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       categoryId: json['categoryId']?.toString() ?? json['category']?['_id']?.toString() ?? '',
-      allocatedInstructorEmail: json['instructor']?['email']?.toString() ?? json['allocatedInstructorEmail']?.toString() ?? '',
+      allocatedInstructorEmail: json['instructor']?['email']?.toString() ?? json['allocatedInstructorEmail']?.toString() ?? (json['instructorId'] is Map ? '${json['instructorId']['firstName']} ${json['instructorId']['lastName']}' : ''),
       level: json['level']?.toString() ?? 'ALL_LEVELS',
       language: json['language']?.toString() ?? 'English',
       requirements: (json['requirements'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
@@ -164,43 +164,4 @@ class LessonModel {
   }
 }
 
-class AssignmentSubmissionModel {
-  final String id;
-  final String lessonId;
-  final String studentEmail;
-  final String fileName;
-  final String filePath;
-  final String submittedAt;
-
-  AssignmentSubmissionModel({
-    required this.id,
-    required this.lessonId,
-    required this.studentEmail,
-    required this.fileName,
-    required this.filePath,
-    required this.submittedAt,
-  });
-
-  factory AssignmentSubmissionModel.fromJson(Map<String, dynamic> json) {
-    return AssignmentSubmissionModel(
-      id: json['id']?.toString() ?? '',
-      lessonId: json['lessonId']?.toString() ?? '',
-      studentEmail: json['studentEmail']?.toString() ?? '',
-      fileName: json['fileName']?.toString() ?? '',
-      filePath: json['filePath']?.toString() ?? '',
-      submittedAt: json['submittedAt']?.toString() ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'lessonId': lessonId,
-      'studentEmail': studentEmail,
-      'fileName': fileName,
-      'filePath': filePath,
-      'submittedAt': submittedAt,
-    };
-  }
-}
 

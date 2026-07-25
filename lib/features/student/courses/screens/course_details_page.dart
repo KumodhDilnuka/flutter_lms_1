@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
+import 'package:flutter_lms/shared/models/review_model.dart';
 import 'package:flutter_lms/shared/providers/course_provider.dart';
 
 class CourseDetailsPage extends StatefulWidget {
@@ -15,6 +16,7 @@ class CourseDetailsPage extends StatefulWidget {
 class _CourseDetailsPageState extends State<CourseDetailsPage> {
   bool _isEnrolling = false;
   late CourseModel _course;
+  List<ReviewModel> _reviews = [];
 
   @override
   void initState() {
@@ -26,11 +28,75 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
   Future<void> _fetchDetails() async {
     final provider = context.read<CourseProvider>();
     final detailedCourse = await provider.getCourseDetails(_course.id);
+    final reviews = await provider.fetchCourseReviews(_course.id);
     if (detailedCourse != null && mounted) {
       setState(() {
         _course = detailedCourse;
+        _reviews = reviews;
       });
     }
+  }
+
+  void _showReviewDialog() {
+    int rating = 5;
+    final commentCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Write a Review'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        icon: Icon(
+                          index < rating ? Icons.star : Icons.star_border,
+                          color: Colors.amber,
+                          size: 32,
+                        ),
+                        onPressed: () => setDialogState(() => rating = index + 1),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: commentCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: 'Share your experience...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    final provider = context.read<CourseProvider>();
+                    await provider.createReview(_course.id, {
+                      'rating': rating,
+                      'comment': commentCtrl.text,
+                    });
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    _fetchDetails(); // refresh reviews
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted!')));
+                  },
+                  child: const Text('Submit'),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
   }
 
   Future<void> _enroll() async {
@@ -158,6 +224,62 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
                         ),
                       );
                     }),
+                  const SizedBox(height: 32),
+                  
+                  // Reviews Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Reviews', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      TextButton.icon(
+                        onPressed: _showReviewDialog,
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Write a Review'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (_reviews.isEmpty)
+                    const Text('No reviews yet. Be the first to review!')
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _reviews.length,
+                      itemBuilder: (context, index) {
+                        final review = _reviews[index];
+                        // Filter out hidden reviews for non-instructors
+                        if (review.isHidden) return const SizedBox.shrink(); 
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(child: Text(review.studentName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                    Row(
+                                      children: List.generate(5, (starIndex) {
+                                        return Icon(
+                                          starIndex < review.rating ? Icons.star : Icons.star_border,
+                                          size: 16,
+                                          color: Colors.amber,
+                                        );
+                                      }),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(review.comment),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),

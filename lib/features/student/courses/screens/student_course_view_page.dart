@@ -1,12 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
+import 'package:flutter_lms/shared/providers/course_provider.dart';
 import 'package:flutter_lms/features/student/courses/screens/lesson_viewer_page.dart';
+import 'package:flutter_lms/features/student/courses/screens/student_quizzes_page.dart';
+import 'package:flutter_lms/features/student/assignments/screens/assignment_list_page.dart';
 
-class StudentCourseViewPage extends StatelessWidget {
+class StudentCourseViewPage extends StatefulWidget {
   final CourseModel course;
   final String studentEmail;
 
   const StudentCourseViewPage({super.key, required this.course, required this.studentEmail});
+
+  @override
+  State<StudentCourseViewPage> createState() => _StudentCourseViewPageState();
+}
+
+class _StudentCourseViewPageState extends State<StudentCourseViewPage> {
+  late CourseModel _course;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _course = widget.course;
+    _fetchDetails();
+  }
+
+  Future<void> _fetchDetails() async {
+    final provider = context.read<CourseProvider>();
+    final detailedCourse = await provider.getCourseDetails(_course.id);
+    final sections = await provider.fetchSections(_course.id);
+    
+    if (detailedCourse != null && mounted) {
+      detailedCourse.sections.clear();
+      detailedCourse.sections.addAll(sections);
+      
+      for (var section in detailedCourse.sections) {
+        final lessons = await provider.fetchLessons(section.id);
+        section.lessons.clear();
+        section.lessons.addAll(lessons);
+      }
+      
+      setState(() {
+        _course = detailedCourse;
+      });
+    }
+    if (mounted) setState(() => _isLoading = false);
+    
+    if (provider.errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading details: ${provider.errorMessage}')));
+    }
+  }
 
   IconData _getIconForType(String type) {
     switch (type.toUpperCase()) {
@@ -29,8 +74,12 @@ class StudentCourseViewPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(course.title)),
-      body: course.sections.isEmpty
+      appBar: AppBar(
+        title: Text(_course.title),
+      ),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : _course.sections.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -43,9 +92,48 @@ class StudentCourseViewPage extends StatelessWidget {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: course.sections.length,
+              itemCount: _course.sections.length + 2, // +2 for Assignments and Quizzes pseudo-sections
               itemBuilder: (context, index) {
-                final section = course.sections[index];
+                if (index == 0) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+                    child: ListTile(
+                      leading: Icon(Icons.assignment, color: Theme.of(context).colorScheme.primary),
+                      title: const Text('Course Assignments', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('View and submit assignments'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => AssignmentListPage(course: _course)),
+                        );
+                      },
+                    ),
+                  );
+                }
+                if (index == 1) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 24), // Extra margin to separate from curriculum
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.4),
+                    child: ListTile(
+                      leading: Icon(Icons.quiz, color: Theme.of(context).colorScheme.secondary),
+                      title: const Text('Course Quizzes', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Take quizzes for this course'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => StudentQuizzesPage(course: _course)),
+                        );
+                      },
+                    ),
+                  );
+                }
+
+                final section = _course.sections[index - 2];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

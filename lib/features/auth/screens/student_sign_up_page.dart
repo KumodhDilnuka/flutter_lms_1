@@ -67,6 +67,7 @@ class _StudentSignupPageState extends State<StudentSignupPage> {
   }
 
   Future<void> _signup() async {
+    _addGoal();
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDateOfBirth == null) {
       ScaffoldMessenger.of(context).showSnackBar(

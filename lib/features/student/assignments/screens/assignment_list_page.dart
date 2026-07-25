@@ -1,16 +1,15 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_lms/shared/models/assignment_model.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
 import 'package:flutter_lms/shared/providers/course_provider.dart';
 import 'package:flutter_lms/shared/widgets/app_card.dart';
 import 'package:flutter_lms/features/student/assignments/screens/assignment_submission_page.dart';
 
 class AssignmentListPage extends StatefulWidget {
-  final String studentEmail;
+  final CourseModel? course;
 
-  const AssignmentListPage({super.key, required this.studentEmail});
+  const AssignmentListPage({super.key, this.course});
 
   @override
   State<AssignmentListPage> createState() => _AssignmentListPageState();
@@ -30,33 +29,52 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
     setState(() => _isLoading = true);
 
     final provider = context.read<CourseProvider>();
-    final courses = provider.courses;
-
-    // Load submissions from local storage
-    final prefs = await SharedPreferences.getInstance();
-    final subsJson = prefs.getString('submissions') ?? '[]';
-    final List<dynamic> submissions = jsonDecode(subsJson);
-
-    final Set<String> submittedLessonIds = {};
-    final Map<String, String> submittedDates = {};
-    for (final sub in submissions) {
-      if (sub['studentEmail'] == widget.studentEmail) {
-        submittedLessonIds.add(sub['lessonId'] ?? '');
-        submittedDates[sub['lessonId'] ?? ''] = sub['submittedAt'] ?? '';
-      }
-    }
-
+    await provider.fetchMyEnrollments(); // ensure we have enrollments
+    
     final List<_AssignmentItem> items = [];
-    for (final course in courses) {
-      for (final section in course.sections) {
-        for (final lesson in section.lessons) {
-          if (lesson.lessonType == 'Assignment') {
+    
+    if (widget.course != null) {
+      // Fetch only for the provided course
+      final assignments = await provider.fetchStudentAssignments(widget.course!.id);
+      for (final assignment in assignments) {
+        final submission = await provider.getMySubmission(assignment.id);
+        items.add(_AssignmentItem(
+          assignment: assignment,
+          courseName: widget.course!.title,
+          isSubmitted: submission != null,
+          submittedAt: submission != null ? submission.submittedAt.toIso8601String() : null,
+        ));
+      }
+    } else {
+      // Fetch assignments for all enrolled courses
+      for (final enrollment in provider.myEnrollments) {
+        final course = enrollment['course'];
+        if (course != null) {
+          String courseId;
+          String courseTitle = 'Course';
+          
+          if (course is String) {
+            courseId = course;
+          } else if (course is Map) {
+            courseId = course['id'] ?? course['_id'] ?? '';
+            courseTitle = course['title'] ?? 'Course';
+          } else {
+            continue; // unknown format
+          }
+          
+          if (courseId.isEmpty) continue;
+          
+          final assignments = await provider.fetchStudentAssignments(courseId);
+          
+          for (final assignment in assignments) {
+            // Check if submitted
+            final submission = await provider.getMySubmission(assignment.id);
+            
             items.add(_AssignmentItem(
-              lesson: lesson,
-              courseName: course.title,
-              sectionName: section.title,
-              isSubmitted: submittedLessonIds.contains(lesson.id),
-              submittedAt: submittedDates[lesson.id],
+              assignment: assignment,
+              courseName: courseTitle,
+              isSubmitted: submission != null,
+              submittedAt: submission != null ? submission.submittedAt.toIso8601String() : null,
             ));
           }
         }
@@ -68,6 +86,9 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
         _assignments = items;
         _isLoading = false;
       });
+      if (provider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Load Error: ${provider.errorMessage}')));
+      }
     }
   }
 
@@ -83,12 +104,12 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
 
   @override
   Widget build(BuildContext context) {
+    Widget content;
+    
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_assignments.isEmpty) {
-      return Center(
+      content = const Center(child: CircularProgressIndicator());
+    } else if (_assignments.isEmpty) {
+      content = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -106,11 +127,10 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
           ],
         ),
       );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadAssignments,
-      child: ListView.builder(
+    } else {
+      content = RefreshIndicator(
+        onRefresh: _loadAssignments,
+        child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _assignments.length,
         itemBuilder: (context, index) {
@@ -120,14 +140,24 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
             padding: const EdgeInsets.only(bottom: 12),
             child: AppCard(
               onTap: item.isSubmitted
-                  ? null
+                  ? () async {
+                      // Already submitted, could view it, but let's just go to submission page to show status
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AssignmentSubmissionPage(
+                            assignment: item.assignment,
+                          ),
+                        ),
+                      );
+                      _loadAssignments();
+                    }
                   : () async {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => AssignmentSubmissionPage(
-                            lesson: item.lesson,
-                            studentEmail: widget.studentEmail,
+                            assignment: item.assignment,
                           ),
                         ),
                       );
@@ -146,7 +176,7 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          item.lesson.title,
+                          item.assignment.title,
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                       ),
@@ -193,7 +223,7 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${item.courseName} • ${item.sectionName}',
+                    item.courseName,
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                   ),
                   if (item.isSubmitted && item.submittedAt != null) ...[
@@ -221,21 +251,28 @@ class _AssignmentListPageState extends State<AssignmentListPage> {
         },
       ),
     );
+    }
+
+    if (widget.course != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Assignments')),
+        body: content,
+      );
+    }
+    
+    return content;
   }
 }
 
-/// Internal data class for assignment list items.
 class _AssignmentItem {
-  final LessonModel lesson;
+  final AssignmentModel assignment;
   final String courseName;
-  final String sectionName;
   final bool isSubmitted;
   final String? submittedAt;
 
   _AssignmentItem({
-    required this.lesson,
+    required this.assignment,
     required this.courseName,
-    required this.sectionName,
     required this.isSubmitted,
     this.submittedAt,
   });

@@ -34,4 +34,28 @@ class User {
       bio: json['bio'],
     );
   }
+
+  User copyWith({
+    String? id,
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? role,
+    String? status,
+    bool? emailVerified,
+    String? profileImageUrl,
+    String? bio,
+  }) {
+    return User(
+      id: id ?? this.id,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      status: status ?? this.status,
+      emailVerified: emailVerified ?? this.emailVerified,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      bio: bio ?? this.bio,
+    );
+  }
 }

@@ -14,9 +14,16 @@ class FeatureProvider extends ChangeNotifier {
       return await action();
     } on ApiException catch (error) {
       errorMessage = error.message;
+      debugPrint('⚠️ API Error: ${error.message} (status: ${error.statusCode})');
       return null;
     } catch (error) {
-      errorMessage = "An unexpected error occurred.";
+      final errStr = error.toString();
+      if (errStr.contains('RAW_JSON:')) {
+        errorMessage = errStr.replaceAll('Exception: RAW_JSON: ', 'RAW: ');
+      } else {
+        errorMessage = "An unexpected error occurred.";
+      }
+      debugPrint('❌ Unexpected Error: $error');
       return null;
     } finally {
       isLoading = false;

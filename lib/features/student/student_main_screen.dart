@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lms/features/student/dashboard/screens/student_dashboard.dart';
-import 'package:flutter_lms/features/student/assignments/screens/assignment_list_page.dart';
 import 'package:flutter_lms/features/profile/screens/student_profile_page.dart';
 
 /// Main screen for students with BottomNavigationBar.
@@ -25,7 +24,6 @@ class _StudentMainScreenState extends State<StudentMainScreen> {
     super.initState();
     _pages = [
       StudentDashboard(email: widget.email),
-      AssignmentListPage(studentEmail: widget.email),
       StudentProfilePage(email: widget.email),
     ];
   }
@@ -61,11 +59,6 @@ class _StudentMainScreenState extends State<StudentMainScreen> {
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home_rounded),
             label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            activeIcon: Icon(Icons.assignment_rounded),
-            label: 'Assignments',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

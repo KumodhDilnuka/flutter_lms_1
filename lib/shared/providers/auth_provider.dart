@@ -38,6 +38,22 @@ class AuthProvider extends FeatureProvider {
     return false;
   }
 
+  Future<bool> adminLogin(String email, String password) async {
+    final session = await run(() => _authService.adminLogin(email: email, password: password));
+    if (session != null) {
+      await _tokenStorage.saveSession(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        role: session.user.role,
+      );
+      currentUser = session.user;
+      currentRole = session.user.role;
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
   Future<bool> registerStudent({
     required String firstName,
     required String lastName,
