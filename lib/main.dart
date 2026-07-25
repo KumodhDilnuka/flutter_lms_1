@@ -1,16 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'theme/app_theme.dart';
-import 'pages/splash_page.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_lms/theme/app_theme.dart';
+import 'package:flutter_lms/features/auth/screens/splash_page.dart';
+import 'package:flutter_lms/core/network/api_client.dart';
+import 'package:flutter_lms/core/storage/token_storage.dart';
+import 'package:flutter_lms/features/auth/services/auth_service.dart';
+import 'package:flutter_lms/shared/providers/auth_provider.dart';
+import 'package:flutter_lms/shared/services/course_service.dart';
+import 'package:flutter_lms/shared/providers/course_provider.dart';
+import 'package:flutter_lms/features/admin/services/admin_service.dart';
+import 'package:flutter_lms/features/admin/providers/admin_provider.dart';
+import 'package:flutter_lms/features/instructor/services/instructor_service.dart';
+import 'package:flutter_lms/features/instructor/providers/instructor_provider.dart';
+import 'package:flutter_lms/shared/services/user_service.dart';
+import 'package:flutter_lms/shared/providers/user_provider.dart';
+import 'package:flutter_lms/features/student/services/student_service.dart';
+import 'package:flutter_lms/features/student/providers/student_provider.dart';
+import 'package:flutter_lms/shared/services/notification_service.dart';
+import 'package:flutter_lms/shared/providers/notification_provider.dart';
 
-import 'pages/admin/admin_dashboard.dart';
-import 'pages/instructor/instructor_dashboard.dart';
-import 'pages/student/student_dashboard.dart';
+import 'package:flutter_lms/features/admin/dashboard/screens/admin_dashboard.dart';
+import 'package:flutter_lms/features/instructor/dashboard/screens/instructor_dashboard.dart';
+import 'package:flutter_lms/features/student/student_main_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  runApp(const MyApp());
+
+  const secureStorage = FlutterSecureStorage();
+  final tokenStorage = TokenStorage(secureStorage);
+  final apiClient = ApiClient(tokenStorage);
+  final authService = AuthService(apiClient);
+  final courseService = CourseService(apiClient);
+  final adminService = AdminService(apiClient);
+  final instructorService = InstructorService(apiClient);
+  final userService = UserService(apiClient);
+  final studentService = StudentService(apiClient);
+  final notificationService = NotificationService(apiClient);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider(authService, tokenStorage)),
+        ChangeNotifierProvider(create: (_) => CourseProvider(courseService)),
+        ChangeNotifierProvider(create: (_) => AdminProvider(adminService)),
+        ChangeNotifierProvider(create: (_) => InstructorProvider(instructorService)),
+        ChangeNotifierProvider(create: (_) => UserProvider(userService)),
+        ChangeNotifierProvider(create: (_) => StudentProvider(studentService)),
+        ChangeNotifierProvider(create: (_) => NotificationProvider(notificationService)..startPolling()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -41,7 +84,7 @@ class HomePage extends StatelessWidget {
     } else if (userRole == 'INSTRUCTOR') {
       return InstructorDashboard(email: email);
     } else {
-      return StudentDashboard(email: email);
+      return StudentMainScreen(email: email);
     }
   }
 }
