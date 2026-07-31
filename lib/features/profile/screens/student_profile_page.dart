@@ -352,37 +352,37 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
             const SizedBox(height: 20),
 
             // Academic Information Section
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const SectionHeader(title: 'Academic Information'),
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: _showEditAcademicDialog,
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  if (_studentProfile == null || _studentProfile!.educationLevel == null)
-                    const Text('No academic information provided.', style: TextStyle(color: Colors.grey))
-                  else ...[
-                    _buildDetailRow(Icons.school, 'Education Level', _studentProfile!.educationLevel!),
-                    const SizedBox(height: 16),
-                    if (_studentProfile!.major != null) ...[
-                      _buildDetailRow(Icons.book, 'Major', _studentProfile!.major!),
-                      const SizedBox(height: 16),
-                    ],
-                    if (_studentProfile!.graduationYear != null)
-                      _buildDetailRow(Icons.calendar_today, 'Graduation Year', _studentProfile!.graduationYear!),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
+            // AppCard(
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       Row(
+            //         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //         children: [
+            //           const SectionHeader(title: 'Academic Information'),
+            //           IconButton(
+            //             icon: const Icon(Icons.edit, size: 20),
+            //             onPressed: _showEditAcademicDialog,
+            //           ),
+            //         ],
+            //       ),
+            //       const Divider(height: 24),
+            //       if (_studentProfile == null || _studentProfile!.educationLevel == null)
+            //         const Text('No academic information provided.', style: TextStyle(color: Colors.grey))
+            //       else ...[
+            //         _buildDetailRow(Icons.school, 'Education Level', _studentProfile!.educationLevel!),
+            //         const SizedBox(height: 16),
+            //         if (_studentProfile!.major != null) ...[
+            //           _buildDetailRow(Icons.book, 'Major', _studentProfile!.major!),
+            //           const SizedBox(height: 16),
+            //         ],
+            //         if (_studentProfile!.graduationYear != null)
+            //           _buildDetailRow(Icons.calendar_today, 'Graduation Year', _studentProfile!.graduationYear!),
+            //       ],
+            //     ],
+            //   ),
+            // ),
+            // const SizedBox(height: 20),
 
             // Student Information Section
             AppCard(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
 import 'package:flutter_lms/shared/models/review_model.dart';
 import 'package:flutter_lms/shared/providers/course_provider.dart';
+import 'package:flutter_lms/shared/providers/user_provider.dart';
 
 class CourseDetailsPage extends StatefulWidget {
   final CourseModel course;
@@ -37,9 +38,9 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
     }
   }
 
-  void _showReviewDialog() {
-    int rating = 5;
-    final commentCtrl = TextEditingController();
+  void _showReviewDialog([ReviewModel? existingReview]) {
+    int rating = existingReview?.rating ?? 5;
+    final commentCtrl = TextEditingController(text: existingReview?.comment ?? '');
 
     showDialog(
       context: context,
@@ -47,7 +48,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Write a Review'),
+              title: Text(existingReview != null ? 'Edit Review' : 'Write a Review'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -80,14 +81,21 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
                 ElevatedButton(
                   onPressed: () async {
                     final provider = context.read<CourseProvider>();
-                    await provider.createReview(_course.id, {
-                      'rating': rating,
-                      'comment': commentCtrl.text,
-                    });
+                    if (existingReview != null) {
+                      await provider.updateReview(existingReview.id, {
+                        'rating': rating,
+                        'comment': commentCtrl.text,
+                      });
+                    } else {
+                      await provider.createReview(_course.id, {
+                        'rating': rating,
+                        'comment': commentCtrl.text,
+                      });
+                    }
                     if (!mounted) return;
                     Navigator.pop(ctx);
                     _fetchDetails(); // refresh reviews
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted!')));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(existingReview != null ? 'Review updated!' : 'Review submitted!')));
                   },
                   child: const Text('Submit'),
                 ),
@@ -97,6 +105,33 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
         );
       }
     );
+  }
+
+  Future<void> _deleteReview(String reviewId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Review'),
+        content: const Text('Are you sure you want to delete this review?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('Delete')
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      final success = await context.read<CourseProvider>().deleteReview(reviewId);
+      if (success && mounted) {
+        _fetchDetails(); // refresh reviews
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review deleted.')));
+      } else if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${context.read<CourseProvider>().errorMessage}')));
+      }
+    }
   }
 
   Future<void> _enroll() async {
@@ -227,59 +262,98 @@ class _CourseDetailsPageState extends State<CourseDetailsPage> {
                   const SizedBox(height: 32),
                   
                   // Reviews Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Reviews', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      TextButton.icon(
-                        onPressed: _showReviewDialog,
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Write a Review'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (_reviews.isEmpty)
-                    const Text('No reviews yet. Be the first to review!')
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _reviews.length,
-                      itemBuilder: (context, index) {
-                        final review = _reviews[index];
-                        // Filter out hidden reviews for non-instructors
-                        if (review.isHidden) return const SizedBox.shrink(); 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(child: Text(review.studentName, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                    Row(
-                                      children: List.generate(5, (starIndex) {
-                                        return Icon(
-                                          starIndex < review.rating ? Icons.star : Icons.star_border,
-                                          size: 16,
-                                          color: Colors.amber,
-                                        );
-                                      }),
-                                    ),
-                                  ],
+                  Consumer<UserProvider>(
+                    builder: (context, userProvider, child) {
+                      final userId = userProvider.currentUserProfile?.id;
+                      final myReview = _reviews.where((r) => r.studentId == userId).firstOrNull;
+                      return Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Reviews', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              if (myReview == null)
+                                TextButton.icon(
+                                  onPressed: () => _showReviewDialog(),
+                                  icon: const Icon(Icons.edit),
+                                  label: const Text('Write a Review'),
+                                )
+                              else
+                                TextButton.icon(
+                                  onPressed: () => _showReviewDialog(myReview),
+                                  icon: const Icon(Icons.edit),
+                                  label: const Text('Edit My Review'),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(review.comment),
-                              ],
-                            ),
+                            ],
                           ),
-                        );
-                      },
-                    ),
+                          const SizedBox(height: 16),
+                          if (_reviews.isEmpty)
+                            const Text('No reviews yet. Be the first to review!')
+                          else
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _reviews.length,
+                              itemBuilder: (context, index) {
+                                final review = _reviews[index];
+                                // Filter out hidden reviews for non-instructors
+                                if (review.isHidden && review.studentId != userId) return const SizedBox.shrink(); 
+                                
+                                final isMyReview = review.studentId == userId;
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  Text(isMyReview ? 'You' : review.studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                  if (review.isHidden && isMyReview)
+                                                    const Padding(
+                                                      padding: EdgeInsets.only(left: 8.0),
+                                                      child: Text('(Hidden by instructor)', style: TextStyle(color: Colors.red, fontSize: 12, fontStyle: FontStyle.italic)),
+                                                    ),
+                                                ],
+                                              )
+                                            ),
+                                            Row(
+                                              children: List.generate(5, (starIndex) {
+                                                return Icon(
+                                                  starIndex < review.rating ? Icons.star : Icons.star_border,
+                                                  size: 16,
+                                                  color: Colors.amber,
+                                                );
+                                              }),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(review.comment),
+                                        if (isMyReview)
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: TextButton.icon(
+                                              onPressed: () => _deleteReview(review.id),
+                                              icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                              label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

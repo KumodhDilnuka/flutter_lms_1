@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lms/features/student/dashboard/screens/student_dashboard.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_lms/shared/providers/user_provider.dart';
 import 'package:flutter_lms/features/profile/screens/student_profile_page.dart';
 
 /// Main screen for students with BottomNavigationBar.
@@ -26,6 +28,11 @@ class _StudentMainScreenState extends State<StudentMainScreen> {
       StudentDashboard(email: widget.email),
       StudentProfilePage(email: widget.email),
     ];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<UserProvider>().fetchMyUserAccount();
+      }
+    });
   }
 
   void _onTabTapped(int index) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/providers/course_provider.dart';
+import 'package:flutter_lms/shared/providers/notification_provider.dart';
 import 'package:flutter_lms/shared/models/quiz_model.dart';
 
 class QuizTakerPage extends StatefulWidget {
@@ -78,6 +79,10 @@ class _QuizTakerPageState extends State<QuizTakerPage> {
         _attempt = submitted;
         _isLoading = false;
       });
+      // Refresh notifications so the QUIZ_RESULT notification appears instantly
+      context.read<NotificationProvider>().fetchNotifications();
+      // Reload course progress to reflect the newly completed quiz
+      await context.read<CourseProvider>().loadCourseProgress(_quiz!.courseId);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quiz Submitted!')));
     }
   }

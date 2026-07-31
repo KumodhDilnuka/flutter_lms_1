@@ -425,12 +425,12 @@ class _CourseManagerPageState extends State<CourseManagerPage> {
           if (_course.status == 'DRAFT')
             TextButton.icon(
               onPressed: _publishCourse,
-              icon: const Icon(Icons.public, color: Colors.white),
-              label: const Text('Publish Course', style: TextStyle(color: Colors.white)),
+              icon: Icon(Icons.public, color: Theme.of(context).colorScheme.primary),
+              label: Text('Publish', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
             ),
           if (_course.status != 'ARCHIVED')
             IconButton(
-              icon: const Icon(Icons.archive, color: Colors.white),
+              icon: Icon(Icons.archive, color: Theme.of(context).colorScheme.error),
               tooltip: 'Archive Course',
               onPressed: _archiveCourse,
             ),

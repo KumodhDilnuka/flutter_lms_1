@@ -6,6 +6,7 @@ import 'package:flutter_lms/shared/models/course_model.dart';
 import 'package:flutter_lms/shared/models/quiz_model.dart';
 import 'package:flutter_lms/shared/models/assignment_model.dart';
 import 'package:flutter_lms/shared/models/review_model.dart';
+import 'package:flutter_lms/shared/models/course_progress_model.dart';
 
 class CourseService {
   final ApiClient apiClient;
@@ -120,27 +121,28 @@ class CourseService {
     }
   }
 
-  Future<void> completeLesson(String lessonId) async {
+  Future<CourseProgressModel> completeLesson(String lessonId) async {
     try {
-      await apiClient.dio.patch('/api/v1/lessons/$lessonId/complete');
+      final response = await apiClient.dio.patch('/api/v1/lessons/$lessonId/complete');
+      return CourseProgressModel.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }
 
-  Future<Map<String, dynamic>> getCourseProgress(String courseId) async {
+  Future<CourseProgressModel> getCourseProgress(String courseId) async {
     try {
-      final response = await apiClient.dio.get('/api/v1/courses/$courseId/progress');
-      return response.data['data'] as Map<String, dynamic>;
+      final response = await apiClient.dio.get('/api/v1/courses/$courseId/progress/me');
+      return CourseProgressModel.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
   }
 
-  Future<Map<String, dynamic>> getEnrollmentProgress(String enrollmentId) async {
+  Future<CourseProgressModel> getEnrollmentProgress(String enrollmentId) async {
     try {
       final response = await apiClient.dio.get('/api/v1/enrollments/$enrollmentId/progress');
-      return response.data['data'] as Map<String, dynamic>;
+      return CourseProgressModel.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
@@ -281,6 +283,16 @@ class CourseService {
   Future<ReviewModel> createReview(String courseId, Map<String, dynamic> payload) async {
     try {
       final response = await apiClient.dio.post('/api/v1/courses/$courseId/reviews', data: payload);
+      final data = response.data['data'];
+      return ReviewModel.fromJson(data['review'] ?? data);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<ReviewModel> getReview(String reviewId) async {
+    try {
+      final response = await apiClient.dio.get('/api/v1/reviews/$reviewId');
       final data = response.data['data'];
       return ReviewModel.fromJson(data['review'] ?? data);
     } on DioException catch (e) {

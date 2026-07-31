@@ -308,42 +308,42 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
             const SizedBox(height: 20),
 
             // Professional Credentials Card
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const SectionHeader(title: 'Professional Credentials'),
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: _showEditInstructorDialog,
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  if (_instructorProfile != null && _instructorProfile!.title != null) ...[
-                    _buildDetailRow(Icons.work_outline, 'Title', _instructorProfile!.title!),
-                    const SizedBox(height: 16),
-                  ],
-                  if (_instructorProfile != null && _instructorProfile!.department != null) ...[
-                    _buildDetailRow(Icons.business_outlined, 'Department', _instructorProfile!.department!),
-                    const SizedBox(height: 16),
-                  ],
-                  if (_instructorProfile != null && _instructorProfile!.yearsOfExperience != null) ...[
-                    _buildDetailRow(Icons.timeline_outlined, 'Experience', '${_instructorProfile!.yearsOfExperience!} years'),
-                    const SizedBox(height: 16),
-                  ],
-                  _buildDetailRow(Icons.email_outlined, 'Email', user.email),
-                  const SizedBox(height: 16),
-                  _buildDetailRow(Icons.school_outlined, 'Status', user.status),
-                  const SizedBox(height: 16),
-                  _buildDetailRow(Icons.verified_outlined, 'Verified', user.emailVerified ? 'Yes' : 'No'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
+            // AppCard(
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       Row(
+            //         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //         children: [
+            //           const SectionHeader(title: 'Professional Credentials'),
+            //           IconButton(
+            //             icon: const Icon(Icons.edit, size: 20),
+            //             onPressed: _showEditInstructorDialog,
+            //           ),
+            //         ],
+            //       ),
+            //       const Divider(height: 24),
+            //       if (_instructorProfile != null && _instructorProfile!.title != null) ...[
+            //         _buildDetailRow(Icons.work_outline, 'Title', _instructorProfile!.title!),
+            //         const SizedBox(height: 16),
+            //       ],
+            //       if (_instructorProfile != null && _instructorProfile!.department != null) ...[
+            //         _buildDetailRow(Icons.business_outlined, 'Department', _instructorProfile!.department!),
+            //         const SizedBox(height: 16),
+            //       ],
+            //       if (_instructorProfile != null && _instructorProfile!.yearsOfExperience != null) ...[
+            //         _buildDetailRow(Icons.timeline_outlined, 'Experience', '${_instructorProfile!.yearsOfExperience!} years'),
+            //         const SizedBox(height: 16),
+            //       ],
+            //       _buildDetailRow(Icons.email_outlined, 'Email', user.email),
+            //       const SizedBox(height: 16),
+            //       _buildDetailRow(Icons.school_outlined, 'Status', user.status),
+            //       const SizedBox(height: 16),
+            //       _buildDetailRow(Icons.verified_outlined, 'Verified', user.emailVerified ? 'Yes' : 'No'),
+            //     ],
+            //   ),
+            // ),
+            // const SizedBox(height: 20),
 
             // Biography Card
             AppCard(

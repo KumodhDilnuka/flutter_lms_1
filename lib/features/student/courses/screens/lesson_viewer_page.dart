@@ -1,11 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_lms/shared/models/course_model.dart';
+import 'package:flutter_lms/shared/providers/course_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class LessonViewerPage extends StatelessWidget {
+class LessonViewerPage extends StatefulWidget {
   final LessonModel lesson;
 
   const LessonViewerPage({super.key, required this.lesson});
+
+  @override
+  State<LessonViewerPage> createState() => _LessonViewerPageState();
+}
+
+class _LessonViewerPageState extends State<LessonViewerPage> {
+  bool _isCompleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startLesson();
+  }
+
+  Future<void> _startLesson() async {
+    // Fire and forget
+    context.read<CourseProvider>().startLesson(widget.lesson.id);
+  }
 
   Future<void> _launchUrl(BuildContext context, String urlString) async {
     final url = Uri.parse(urlString);
@@ -18,21 +38,69 @@ class LessonViewerPage extends StatelessWidget {
     }
   }
 
+  Future<void> _markAsComplete() async {
+    setState(() => _isCompleting = true);
+    final success = await context.read<CourseProvider>().completeLesson(widget.lesson.id);
+    
+    if (mounted) {
+      setState(() => _isCompleting = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lesson completed!')));
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.read<CourseProvider>().errorMessage ?? 'Failed to complete lesson')
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(lesson.title)),
+      appBar: AppBar(title: Text(widget.lesson.title)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(lesson.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(widget.lesson.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(lesson.description, style: TextStyle(fontSize: 16, color: Colors.grey.shade700)),
+            Text(widget.lesson.description, style: TextStyle(fontSize: 16, color: Colors.grey.shade700)),
             const SizedBox(height: 24),
             
             _buildLessonContent(context),
+
+            const SizedBox(height: 48),
+            
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: Consumer<CourseProvider>(
+                builder: (context, provider, child) {
+                  final isAlreadyCompleted = provider.lessonProgressStatus[widget.lesson.id] == 'COMPLETED';
+                  if (isAlreadyCompleted) {
+                    return ElevatedButton.icon(
+                      onPressed: null, // Disabled if already completed
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text('Lesson Completed'),
+                      style: ElevatedButton.styleFrom(
+                        disabledBackgroundColor: Colors.green.shade100,
+                        disabledForegroundColor: Colors.green.shade700,
+                      ),
+                    );
+                  }
+                  
+                  return ElevatedButton(
+                    onPressed: _isCompleting ? null : _markAsComplete,
+                    child: _isCompleting 
+                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Mark as Complete', style: TextStyle(fontSize: 16)),
+                  );
+                }
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -40,7 +108,7 @@ class LessonViewerPage extends StatelessWidget {
   }
 
   Widget _buildLessonContent(BuildContext context) {
-    switch (lesson.lessonType) {
+    switch (widget.lesson.lessonType) {
       case 'TEXT':
         return Container(
           padding: const EdgeInsets.all(16),
@@ -50,7 +118,7 @@ class LessonViewerPage extends StatelessWidget {
           ),
           width: double.infinity,
           child: Text(
-            lesson.textContent ?? 'No content provided.',
+            widget.lesson.textContent ?? 'No content provided.',
             style: const TextStyle(fontSize: 16, height: 1.6),
           ),
         );
@@ -67,9 +135,9 @@ class LessonViewerPage extends StatelessWidget {
               child: const Icon(Icons.play_circle_outline, size: 64, color: Colors.white),
             ),
             const SizedBox(height: 16),
-            if (lesson.videoUrl != null)
+            if (widget.lesson.videoUrl != null)
               ElevatedButton.icon(
-                onPressed: () => _launchUrl(context, lesson.videoUrl!),
+                onPressed: () => _launchUrl(context, widget.lesson.videoUrl!),
                 icon: const Icon(Icons.open_in_browser),
                 label: const Text('Open Video Externally'),
               )
@@ -97,9 +165,9 @@ class LessonViewerPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            if (lesson.documentUrl != null)
+            if (widget.lesson.documentUrl != null)
               ElevatedButton.icon(
-                onPressed: () => _launchUrl(context, lesson.documentUrl!),
+                onPressed: () => _launchUrl(context, widget.lesson.documentUrl!),
                 icon: const Icon(Icons.download),
                 label: const Text('Download / View Document'),
               )

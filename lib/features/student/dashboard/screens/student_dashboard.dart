@@ -274,7 +274,8 @@ class _StudentDashboardState extends State<StudentDashboard> with SingleTickerPr
                       return const SizedBox.shrink();
                     }
 
-                    final progress = enrollment['progress'] ?? 0;
+                    final p = enrollment['progressPercentage'] ?? enrollment['progress'] ?? 0;
+                    final progress = (p as num).toInt();
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 20),

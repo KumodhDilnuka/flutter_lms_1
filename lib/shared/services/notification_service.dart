@@ -10,7 +10,7 @@ class NotificationService {
 
   Future<List<NotificationModel>> fetchNotifications() async {
     try {
-      final response = await apiClient.dio.get('/api/v1/notifications');
+      final response = await apiClient.dio.get('/api/v1/notifications/me?page=1&limit=50&unreadOnly=false');
       final data = response.data['data']?['notifications'] as List?;
       if (data == null) return [];
       return data.map((json) => NotificationModel.fromJson(json)).toList();
@@ -21,8 +21,8 @@ class NotificationService {
 
   Future<int> fetchUnreadCount() async {
     try {
-      final response = await apiClient.dio.get('/api/v1/notifications/unread-count');
-      return response.data['data']?['count'] ?? 0;
+      final response = await apiClient.dio.get('/api/v1/notifications/me/unread-count');
+      return response.data['data']?['unreadCount'] ?? 0;
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
@@ -40,7 +40,7 @@ class NotificationService {
 
   Future<void> markAllAsRead() async {
     try {
-      await apiClient.dio.patch('/api/v1/notifications/read-all');
+      await apiClient.dio.patch('/api/v1/notifications/me/read-all');
     } on DioException catch (e) {
       throw _handleDioError(e);
     }

@@ -95,7 +95,7 @@ class AdminService {
       if (data == null) {
           throw Exception('RAW_JSON: ${response.data}');
       }
-      return (data as List).map((json) => CourseModel.fromJson(json)).toList();
+      return data.map((json) => CourseModel.fromJson(json)).toList();
     } on DioException catch (e) {
       throw _handleDioError(e);
     }

@@ -83,7 +83,6 @@ class _ReviewManagerPageState extends State<ReviewManagerPage> {
                             ),
                             const SizedBox(height: 8),
                             Text(review.comment),
-
                           ],
                         ),
                       ),

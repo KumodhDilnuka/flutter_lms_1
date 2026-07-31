@@ -42,6 +42,9 @@ class _StudentCourseViewPageState extends State<StudentCourseViewPage> {
         section.lessons.addAll(lessons);
       }
       
+      // Load Progress
+      await provider.loadCourseProgress(_course.id);
+      
       setState(() {
         _course = detailedCourse;
       });
@@ -62,13 +65,17 @@ class _StudentCourseViewPageState extends State<StudentCourseViewPage> {
     }
   }
 
-  void _handleLessonTap(BuildContext context, LessonModel lesson) {
-    Navigator.push(
+  Future<void> _handleLessonTap(BuildContext context, LessonModel lesson) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => LessonViewerPage(lesson: lesson),
       ),
     );
+    // Refresh progress when returning from lesson viewer
+    if (mounted) {
+      await context.read<CourseProvider>().loadCourseProgress(_course.id);
+    }
   }
 
   @override
@@ -90,10 +97,33 @@ class _StudentCourseViewPageState extends State<StudentCourseViewPage> {
                 ],
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _course.sections.length + 2, // +2 for Assignments and Quizzes pseudo-sections
-              itemBuilder: (context, index) {
+          : Column(
+              children: [
+                Consumer<CourseProvider>(
+                  builder: (context, provider, child) {
+                    final progress = provider.courseProgressPercentage;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        LinearProgressIndicator(
+                          value: progress / 100,
+                          minHeight: 8,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, top: 8),
+                          child: Text('$progress% Complete', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    );
+                  }
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _course.sections.length + 2, // +2 for Assignments and Quizzes pseudo-sections
+                    itemBuilder: (context, index) {
                 if (index == 0) {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -147,12 +177,32 @@ class _StudentCourseViewPageState extends State<StudentCourseViewPage> {
                         )
                       else
                         ...section.lessons.map((lesson) {
-                          return ListTile(
-                            leading: Icon(_getIconForType(lesson.lessonType), color: Theme.of(context).colorScheme.primary),
-                            title: Text(lesson.title),
-                            subtitle: Text(lesson.lessonType),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                            onTap: () => _handleLessonTap(context, lesson),
+                          return Consumer<CourseProvider>(
+                            builder: (context, provider, child) {
+                              final status = provider.lessonProgressStatus[lesson.id] ?? 'NOT_STARTED';
+                              final isCompleted = status == 'COMPLETED';
+                              return ListTile(
+                                leading: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Icon(_getIconForType(lesson.lessonType), color: Theme.of(context).colorScheme.primary),
+                                    if (isCompleted)
+                                      Positioned(
+                                        right: -4,
+                                        bottom: -4,
+                                        child: Container(
+                                          decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                                          child: const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                title: Text(lesson.title),
+                                subtitle: Text(lesson.lessonType),
+                                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                                onTap: () => _handleLessonTap(context, lesson),
+                              );
+                            }
                           );
                         }),
                     ],
@@ -160,6 +210,9 @@ class _StudentCourseViewPageState extends State<StudentCourseViewPage> {
                 );
               },
             ),
+          ),
+        ]
+      ),
     );
   }
 }

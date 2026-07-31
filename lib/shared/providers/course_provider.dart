@@ -58,22 +58,56 @@ class CourseProvider extends FeatureProvider {
     return result.map((e) => LessonModel.fromJson(e)).toList();
   }
 
+  // --- Progress State ---
+  Map<String, String> _lessonProgressStatus = {};
+  int _courseProgressPercentage = 0;
+
+  Map<String, String> get lessonProgressStatus => _lessonProgressStatus;
+  int get courseProgressPercentage => _courseProgressPercentage;
+
   Future<bool> startLesson(String lessonId) async {
     await run(() => courseService.startLesson(lessonId));
-    return errorMessage == null;
+    if (errorMessage == null) {
+      if (_lessonProgressStatus[lessonId] != 'COMPLETED') {
+        _lessonProgressStatus[lessonId] = 'IN_PROGRESS';
+        notifyListeners();
+      }
+      return true;
+    }
+    return false;
   }
 
   Future<bool> completeLesson(String lessonId) async {
-    await run(() => courseService.completeLesson(lessonId));
-    return errorMessage == null;
+    final result = await run(() => courseService.completeLesson(lessonId));
+    if (result != null) {
+      _lessonProgressStatus[lessonId] = 'COMPLETED';
+      _courseProgressPercentage = result.progressPercentage;
+      notifyListeners();
+      return true;
+    }
+    return false;
   }
 
-  Future<Map<String, dynamic>?> getCourseProgress(String courseId) async {
-    return await run(() => courseService.getCourseProgress(courseId));
+  Future<void> loadCourseProgress(String courseId) async {
+    final result = await run(() => courseService.getCourseProgress(courseId));
+    if (result != null) {
+      _courseProgressPercentage = result.progressPercentage;
+      for (var lesson in result.lessons) {
+        _lessonProgressStatus[lesson.lessonId] = lesson.status;
+      }
+      notifyListeners();
+    }
   }
 
-  Future<Map<String, dynamic>?> getEnrollmentProgress(String enrollmentId) async {
-    return await run(() => courseService.getEnrollmentProgress(enrollmentId));
+  Future<void> loadEnrollmentProgress(String enrollmentId) async {
+    final result = await run(() => courseService.getEnrollmentProgress(enrollmentId));
+    if (result != null) {
+      _courseProgressPercentage = result.progressPercentage;
+      for (var lesson in result.lessons) {
+        _lessonProgressStatus[lesson.lessonId] = lesson.status;
+      }
+      notifyListeners();
+    }
   }
 
   // --- Quiz Consumption ---
@@ -136,6 +170,10 @@ class CourseProvider extends FeatureProvider {
 
   Future<ReviewModel?> createReview(String courseId, Map<String, dynamic> payload) async {
     return await run(() => courseService.createReview(courseId, payload));
+  }
+
+  Future<ReviewModel?> getReview(String reviewId) async {
+    return await run(() => courseService.getReview(reviewId));
   }
 
   Future<ReviewModel?> updateReview(String reviewId, Map<String, dynamic> payload) async {
